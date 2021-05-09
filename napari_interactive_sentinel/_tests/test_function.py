@@ -1,0 +1,3 @@
+# from napari_interactive_sentinel import threshold, image_arithmetic
+
+# add your tests here...
