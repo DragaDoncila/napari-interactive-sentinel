@@ -94,8 +94,7 @@ def add_profile(
             # max_y = centre + 1.05 * range_ / 2
             # ndvi_axes.set_ylim(min_y, max_y)
             ndvi_axes.set_xlim(xs[0], xs[-1])
-            #TODO: Pick color for line?
-            ndvi_axes.add_line(Line2D(xs, new_ys))
+            ndvi_axes.plot(xs, new_ys)
 
             canvas_widg.draw_idle()
     pbar.close()
