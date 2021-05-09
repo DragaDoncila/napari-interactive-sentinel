@@ -50,8 +50,8 @@ def create_plot_dock(viewer):
 
 def get_ndvi(NIR, red, y, x):
     """Get NDVI of a particular pixel"""
-    nir_intensities = np.asarray(NIR[:, 0, y, x].astype(np.float32))
-    red_intensities = np.asarray(red[:, 0, y, x].astype(np.float32))
+    nir_intensities = NIR[:, 0, y, x].astype(np.float32)
+    red_intensities = red[:, 0, y, x].astype(np.float32)
 
     intensity_sum = (nir_intensities + red_intensities)
     intensity_diff = (nir_intensities - red_intensities)
@@ -59,7 +59,7 @@ def get_ndvi(NIR, red, y, x):
     ndvi =  da.divide(intensity_diff,intensity_sum)
     ndvi[da.isnan(ndvi)] = 0
 
-    return np.asarray(ndvi)
+    return ndvi
 
 @thread_worker
 def add_profile(
@@ -158,6 +158,7 @@ def start_profiles(
         viewer.layers.selection.add(pts_layer)
         pts_layer.mode = 'add'
 
+        # TODO: close properly...
         close_profiles.layer.bind(pts_layer)
         close_profiles.callback.bind(callback)
 
