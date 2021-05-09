@@ -6,36 +6,163 @@ see: https://napari.org/docs/dev/plugins/hook_specifications.html
 
 Replace code below according to your needs.
 """
+from napari._qt.qthreading import thread_worker
 from napari_plugin_engine import napari_hook_implementation
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QPushButton
-from magicgui import magic_factory
+import numpy as np
+from magicgui import magicgui, magic_factory
+import dask.array as da
+import toolz as tz
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT
+from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
+from PyQt5.QtWidgets import QVBoxLayout, QWidget
 
-class ExampleQWidget(QWidget):
-    # your QWidget.__init__ can optionally request the napari viewer instance
-    # in one of two ways:
-    # 1. use a parameter called `napari_viewer`, as done here
-    # 2. use a type annotation of 'napari.viewer.Viewer' for any parameter
-    def __init__(self, napari_viewer):
-        super().__init__()
-        self.viewer = napari_viewer
-
-        btn = QPushButton("Click me!")
-        btn.clicked.connect(self._on_click)
-
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
-
-    def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
-
-
-@magic_factory
-def example_magic_widget(img_layer: "napari.layers.Image"):
-    print(f"you have selected {img_layer}")
-
+from napari.qt import progress
 
 @napari_hook_implementation
 def napari_experimental_provide_dock_widget():
-    # you can return either a single widget, or a sequence of widgets
-    return [ExampleQWidget, example_magic_widget]
+    return start_profiles
+
+def create_plot_dock(viewer):
+        # create the NDVI plot
+        with plt.style.context("dark_background"):
+            ndvi_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+            ndvi_axes = ndvi_canvas.figure.subplots()
+            
+            ndvi_axes.set_ylim(-1, 1)
+            ndvi_axes.set_xlabel("time")
+            ndvi_axes.set_ylabel("NDVI")
+            ndvi_axes.set_title("NDVI")
+            ndvi_canvas.figure.tight_layout()
+
+        # add matplotlib toolbar
+        toolbar = NavigationToolbar2QT(ndvi_canvas, viewer.window._qt_window)
+        widget = QWidget()
+        layout = QVBoxLayout()
+        widget.setLayout(layout)
+        layout.addWidget(toolbar)
+        layout.addWidget(ndvi_canvas)
+        viewer.window.add_dock_widget(widget)
+
+        return ndvi_canvas
+
+def get_ndvi(NIR, red, y, x):
+    """Get NDVI of a particular pixel"""
+    nir_intensities = np.asarray(NIR[:, 0, y, x].astype(np.float32))
+    red_intensities = np.asarray(red[:, 0, y, x].astype(np.float32))
+
+    intensity_sum = (nir_intensities + red_intensities)
+    intensity_diff = (nir_intensities - red_intensities)
+
+    ndvi =  da.divide(intensity_diff,intensity_sum)
+    ndvi[da.isnan(ndvi)] = 0
+
+    return np.asarray(ndvi)
+
+@thread_worker
+def add_profile(
+    pt,
+    canvas_widg,
+    nir,
+    red,
+    pbar
+):
+    #TODO: if not multiscale
+    red = red.data[0]
+    nir = nir.data[0]
+
+    min_x, min_y = 0, 0
+    max_x = red.shape[-1]
+    max_y = red.shape[-2]
+
+    ndvi_axes = canvas_widg.figure.axes[0]
+    current_lines = ndvi_axes.get_lines()
+    if current_lines:
+        xs, _ = current_lines[0].get_data()
+    else:
+        xs = np.arange(red.shape[0])
+    if (min_x <= pt[0] <= max_x) and\
+         (min_y <= pt[1] <= max_y):
+            new_ys = get_ndvi(nir, red, int(pt[0]), int(pt[1]))
+            # TODO: set y limits based on all profiles
+            # minval, maxval = np.min(new_ys), np.max(new_ys)
+            # range_ = maxval - minval
+            # centre = (maxval + minval) / 2
+            # min_y = centre - 1.05 * range_ / 2
+            # max_y = centre + 1.05 * range_ / 2
+            # ndvi_axes.set_ylim(min_y, max_y)
+            ndvi_axes.set_xlim(xs[0], xs[-1])
+            #TODO: Pick color for line?
+            ndvi_axes.add_line(Line2D(xs, new_ys))
+
+            canvas_widg.draw_idle()
+    pbar.close()
+
+@tz.curry
+def handle_data_change(
+    e,
+    *args,
+    viewer,
+    widg,
+    red,
+    nir,
+    pts
+):
+    pbar = progress(total=0)
+    if pts.mode == 'add':
+        pt = e.value[-1]
+        pbar.set_description(f"NDVI @ ({int(pt[0])}, {int(pt[1])})")
+        worker = add_profile(pt, widg, nir, red, pbar)
+        worker.start()
+        #TODO: elif selected figure out how to move points around
+    
+# make a bindable function to shut things down
+@magicgui
+def close_profiles(layer, callback):
+    layer.events.data.disconnect(callback)
+    layer.mode = 'pan_zoom'
+
+
+@magic_factory(
+        call_button='Start',
+        layout='vertical',
+        viewer={'visible': False, 'label': ' '},
+        )
+def start_profiles(
+        red: 'napari.layers.Image',
+        nir: 'napari.layers.Image',
+        viewer : 'napari.viewer.Viewer',
+        ):
+    mode = start_profiles._call_button.text  # can be "Start" or "Finish"
+
+    if mode == 'Start':
+        # make a points layer for image
+        pts_layer = viewer.add_points(
+                ndim=2,
+                name='NDVI_pts',
+        )
+
+        widget = create_plot_dock(viewer)
+        callback = handle_data_change(
+            viewer=viewer,
+            widg=widget,
+            red=red,
+            nir=nir,
+            pts=pts_layer
+        )
+        pts_layer.events.data.connect(callback)
+
+        viewer.layers.selection.clear()
+        viewer.layers.selection.add(pts_layer)
+        pts_layer.mode = 'add'
+
+        close_profiles.layer.bind(pts_layer)
+        close_profiles.callback.bind(callback)
+
+        # change the button/mode for next run
+        start_profiles._call_button.text = 'Finish'
+    else:  # we are in Finish mode
+        close_profiles()
+        start_profiles._call_button.text = 'Start'
