@@ -125,9 +125,8 @@ def handle_data_change(
         worker = add_profile(pt, widg, nir, red, pbar)
         worker.start()
         #TODO: elif selected figure out how to move points around
-    
-# make a bindable function to shut things down
-@magicgui
+
+
 def close_profiles(layer, callback):
     layer.events.data.disconnect(callback)
     layer.mode = 'pan_zoom'
@@ -168,11 +167,11 @@ def start_profiles(
         pts_layer.mode = 'add'
 
         # TODO: close properly...
-        close_profiles.layer.bind(pts_layer)
-        close_profiles.callback.bind(callback)
+        start_profiles._pts_layer = pts_layer
+        start_profiles._callback = callback
 
         # change the button/mode for next run
         start_profiles._call_button.text = 'Finish'
     else:  # we are in Finish mode
-        close_profiles()
+        close_profiles(start_profiles._pts_layer, start_profiles._callback)
         start_profiles._call_button.text = 'Start'
