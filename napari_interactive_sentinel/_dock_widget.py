@@ -1,15 +1,11 @@
 """
-This module is an example of a barebones QWidget plugin for napari
-
-It implements the ``napari_experimental_provide_dock_widget`` hook specification.
-see: https://napari.org/docs/dev/plugins/hook_specifications.html
-
-Replace code below according to your needs.
+This module provides an interactive widget for computing NDVI profiles over time
+of selected pixels
 """
 from napari._qt.qthreading import thread_worker
 from napari_plugin_engine import napari_hook_implementation
 import numpy as np
-from magicgui import magicgui, magic_factory
+from magicgui import magic_factory
 import dask.array as da
 import toolz as tz
 import warnings
@@ -17,10 +13,11 @@ import warnings
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT
 from matplotlib.figure import Figure
-from matplotlib.lines import Line2D
 from PyQt5.QtWidgets import QVBoxLayout, QWidget
 
 from napari.qt import progress
+
+LAST_MOVE_POINT = []
 
 @napari_hook_implementation
 def napari_experimental_provide_dock_widget():
@@ -62,6 +59,14 @@ def get_ndvi(NIR, red, y, x):
 
     return ndvi
 
+def set_axes_lims(ndvi_axes, all_ys):
+    all_ys = np.concatenate(all_ys).flatten()
+    minval, maxval = np.min(all_ys), np.max(all_ys)
+    range_ = maxval - minval
+    centre = (maxval + minval) / 2
+    min_y = centre - 1.05 * range_ / 2
+    max_y = centre + 1.05 * range_ / 2
+    ndvi_axes.set_ylim(min_y, max_y)
 
 @thread_worker
 def add_profile(
@@ -94,25 +99,18 @@ def add_profile(
         if (min_x <= pt[0] <= max_x) and\
             (min_y <= pt[1] <= max_y):
                 new_ys = get_ndvi(nir, red, int(pt[0]), int(pt[1]))
-                # TODO: set y limits based on all profiles
                 all_ys += [new_ys]
-                all_ys = np.concatenate(all_ys).flatten()
-                minval, maxval = np.min(all_ys), np.max(all_ys)
-                range_ = maxval - minval
-                centre = (maxval + minval) / 2
-                min_y = centre - 1.05 * range_ / 2
-                max_y = centre + 1.05 * range_ / 2
-                ndvi_axes.set_ylim(min_y, max_y)
+                # TODO: set y limits based on all profiles
+                set_axes_lims(ndvi_axes, all_ys)
                 ndvi_axes.plot(xs, new_ys)
 
                 canvas_widg.draw_idle()
         pbar.close()
 
 @tz.curry
-def handle_data_change(
+def handle_data_add(
     e,
     *args,
-    viewer,
     widg,
     red,
     nir,
@@ -124,8 +122,58 @@ def handle_data_change(
         pbar.set_description(f"NDVI @ ({int(pt[0])}, {int(pt[1])})")
         worker = add_profile(pt, widg, nir, red, pbar)
         worker.start()
-        #TODO: elif selected figure out how to move points around
 
+def handle_points_move(e):
+    LAST_MOVE_POINT.append((e.idx, e.coord))
+
+def move_profile(move_info, red, nir, canvas_widget):
+    pt_index, coord = move_info
+    pt_index = pt_index[0]
+
+    red = red.data[0]
+    nir = nir.data[0]
+
+    min_x, min_y = 0, 0
+    max_x = red.shape[-1]
+    max_y = red.shape[-2]
+
+    if (min_x <= coord[0] <= max_x) and\
+        (min_y <= coord[1] <= max_y):
+        ndvi_axes = canvas_widget.figure.axes[0]
+        current_lines = ndvi_axes.get_lines()   
+        # find the line we need to move
+        line_to_move = current_lines[pt_index]
+
+        all_ys = [line.get_data()[1] for line in current_lines if line is not line_to_move] 
+        new_ys = get_ndvi(nir, red, int(coord[0]), int(coord[1]))
+        all_ys += [new_ys]
+        set_axes_lims(ndvi_axes, all_ys)
+        line_to_move.set_ydata(new_ys)
+        
+        canvas_widget.draw_idle()
+
+    # change its data (?)
+
+@tz.curry
+def move_release(
+    pts,
+    e,
+    *args,
+    red,
+    nir,
+    canvas_widget
+):
+    global LAST_MOVE_POINT
+    moved = False
+    # yield mouse press
+    yield
+    while e.type == 'mouse_move':
+        moved = True
+        yield
+    # on release
+    if pts.mode == 'select' and moved:
+        move_profile(LAST_MOVE_POINT[-1], red, nir, canvas_widget)
+        LAST_MOVE_POINT = []
 
 def close_profiles(layer, callback):
     layer.events.data.disconnect(callback)
@@ -151,16 +199,24 @@ def start_profiles(
                 ndim=2,
                 name='NDVI_pts',
         )
+        #TODO: make points big
 
         widget = create_plot_dock(viewer)
-        callback = handle_data_change(
-            viewer=viewer,
+        callback = handle_data_add(
             widg=widget,
             red=red,
             nir=nir,
             pts=pts_layer
         )
         pts_layer.events.data.connect(callback)
+        pts_layer.events.move.connect(handle_points_move)
+
+        move_cbk = move_release(
+            red=red,
+            nir=nir,
+            canvas_widget=widget
+        )
+        pts_layer.mouse_drag_callbacks.append(move_cbk)
 
         viewer.layers.selection.clear()
         viewer.layers.selection.add(pts_layer)
@@ -175,3 +231,13 @@ def start_profiles(
     else:  # we are in Finish mode
         close_profiles(start_profiles._pts_layer, start_profiles._callback)
         start_profiles._call_button.text = 'Start'
+
+
+
+
+# from magicgui.widgets import FunctionGui
+
+# class StartProfiles(FunctionGui):
+#     def __init__(self):
+#         super().__init__(start_profiles, call_button='Start', param_options={'viewer': {'visible': False, 'label': ' '}})
+
