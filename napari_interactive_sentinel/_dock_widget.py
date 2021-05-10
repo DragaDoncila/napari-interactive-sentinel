@@ -172,10 +172,3 @@ def NDVI_profiles(
             NDVI_profiles._mouse_callback,
         )
         NDVI_profiles._call_button.text = "Start"
-
-
-# from magicgui.widgets import FunctionGui
-
-# class StartProfiles(FunctionGui):
-#     def __init__(self):
-#         super().__init__(start_profiles, call_button='Start', param_options={'viewer': {'visible': False, 'label': ' '}})
