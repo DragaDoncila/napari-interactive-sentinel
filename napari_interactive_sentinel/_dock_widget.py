@@ -10,7 +10,7 @@ import toolz as tz
 import numpy as np
 
 from napari.qt import progress
-from ._utils import get_ndvi, set_axes_lims, create_plot_dock
+from ._utils import get_ndvi_profile, set_axes_lims, create_plot_dock
 
 LAST_MOVE_POINT = []
 
@@ -41,7 +41,7 @@ def add_profile(pts_layer, pt, canvas_widg, nir, red, pbar):
         all_ys = []
 
     if (min_x <= pt[0] <= max_x) and (min_y <= pt[1] <= max_y):
-        new_ys = get_ndvi(nir, red, int(pt[0]), int(pt[1]))
+        new_ys = get_ndvi_profile(nir, red, int(pt[0]), int(pt[1]))
         all_ys += [new_ys]
         set_axes_lims(ndvi_axes, all_ys)
         line = ndvi_axes.plot(xs, new_ys)[0]
@@ -90,7 +90,7 @@ def move_profile(move_info, red, nir, canvas_widget, pbar):
         all_ys = [
             line.get_data()[1] for line in current_lines if line is not line_to_move
         ]
-        new_ys = get_ndvi(nir, red, int(coord[0]), int(coord[1]))
+        new_ys = get_ndvi_profile(nir, red, int(coord[0]), int(coord[1]))
         all_ys += [new_ys]
         set_axes_lims(ndvi_axes, all_ys)
         line_to_move.set_ydata(new_ys)
