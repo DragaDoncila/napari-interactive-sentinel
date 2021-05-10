@@ -6,6 +6,7 @@ from napari._qt.qthreading import thread_worker
 from napari_plugin_engine import napari_hook_implementation
 from magicgui import magic_factory
 import toolz as tz
+import numpy as np
 
 from napari.qt import progress
 from ._utils import get_ndvi, set_axes_lims, create_plot_dock
@@ -71,7 +72,8 @@ def handle_data_add(
 def handle_points_move(e):
     LAST_MOVE_POINT.append((e.idx, e.coord))
 
-def move_profile(move_info, red, nir, canvas_widget):
+@thread_worker
+def move_profile(move_info, red, nir, canvas_widget, pbar):
     pt_index, coord = move_info
     pt_index = pt_index[0]
 
@@ -84,6 +86,7 @@ def move_profile(move_info, red, nir, canvas_widget):
 
     if (min_x <= coord[0] <= max_x) and\
         (min_y <= coord[1] <= max_y):
+        pbar.set_description(f'NDVI @ ({int(coord[0])}, {int(coord[1])})')
         ndvi_axes = canvas_widget.figure.axes[0]
         current_lines = ndvi_axes.get_lines()   
         # find the line we need to move
@@ -96,6 +99,7 @@ def move_profile(move_info, red, nir, canvas_widget):
         line_to_move.set_ydata(new_ys)
         
         canvas_widget.draw_idle()
+    pbar.close()
 
 @tz.curry
 def move_release(
@@ -115,7 +119,9 @@ def move_release(
         yield
     # on release
     if pts.mode == 'select' and moved:
-        move_profile(LAST_MOVE_POINT[-1], red, nir, canvas_widget)
+        pbar = progress(total=0)
+        worker = move_profile(LAST_MOVE_POINT[-1], red, nir, canvas_widget, pbar)
+        worker.start()
         LAST_MOVE_POINT = []
 
 def close_profiles(layer, callback):
