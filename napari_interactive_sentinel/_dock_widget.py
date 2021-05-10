@@ -5,6 +5,7 @@ of selected pixels
 from napari._qt.qthreading import thread_worker
 from napari_plugin_engine import napari_hook_implementation
 from magicgui import magic_factory
+from matplotlib.colors import to_rgba
 import toolz as tz
 import numpy as np
 
@@ -16,11 +17,11 @@ LAST_MOVE_POINT = []
 
 @napari_hook_implementation
 def napari_experimental_provide_dock_widget():
-    return start_profiles
+    return NDVI_profiles
 
 
 @thread_worker
-def add_profile(pt, canvas_widg, nir, red, pbar):
+def add_profile(pts_layer, pt, canvas_widg, nir, red, pbar):
     # TODO: if not multiscale
     red = red.data[0]
     nir = nir.data[0]
@@ -43,7 +44,10 @@ def add_profile(pt, canvas_widg, nir, red, pbar):
         new_ys = get_ndvi(nir, red, int(pt[0]), int(pt[1]))
         all_ys += [new_ys]
         set_axes_lims(ndvi_axes, all_ys)
-        ndvi_axes.plot(xs, new_ys)
+        line = ndvi_axes.plot(xs, new_ys)[0]
+        current_colors = pts_layer.face_color
+        current_colors[-1] = to_rgba(line.get_color())
+        pts_layer.face_color = current_colors
 
         canvas_widg.draw_idle()
     pbar.close()
@@ -55,7 +59,7 @@ def handle_data_add(e, *args, widg, red, nir, pts):
         pbar = progress(total=0)
         pt = e.value[-1]
         pbar.set_description(f"NDVI @ ({int(pt[0])}, {int(pt[1])})")
-        worker = add_profile(pt, widg, nir, red, pbar)
+        worker = add_profile(pts, pt, widg, nir, red, pbar)
         worker.start()
 
 
@@ -124,13 +128,13 @@ def close_profiles(layer, data_callback, move_callback, mouse_callback):
     layout="vertical",
     viewer={"visible": False, "label": " "},
 )
-def start_profiles(
+def NDVI_profiles(
     red: "napari.layers.Image",
     nir: "napari.layers.Image",
     viewer: "napari.viewer.Viewer",
     # TODO: Add picker for layer level
 ):
-    mode = start_profiles._call_button.text  # can be "Start" or "Finish"
+    mode = NDVI_profiles._call_button.text  # can be "Start" or "Finish"
 
     if mode == "Start":
         # make a points layer for image
@@ -153,21 +157,21 @@ def start_profiles(
 
         pts_layer.mode = "add"
 
-        start_profiles._pts_layer = pts_layer
-        start_profiles._data_callback = data_callback
-        start_profiles._move_callback = handle_points_move
-        start_profiles._mouse_callback = move_cbk
+        NDVI_profiles._pts_layer = pts_layer
+        NDVI_profiles._data_callback = data_callback
+        NDVI_profiles._move_callback = handle_points_move
+        NDVI_profiles._mouse_callback = move_cbk
 
         # change the button/mode for next run
-        start_profiles._call_button.text = "Finish"
+        NDVI_profiles._call_button.text = "Finish"
     else:  # we are in Finish mode
         close_profiles(
-            start_profiles._pts_layer,
-            start_profiles._data_callback,
-            start_profiles._move_callback,
-            start_profiles._mouse_callback,
+            NDVI_profiles._pts_layer,
+            NDVI_profiles._data_callback,
+            NDVI_profiles._move_callback,
+            NDVI_profiles._mouse_callback,
         )
-        start_profiles._call_button.text = "Start"
+        NDVI_profiles._call_button.text = "Start"
 
 
 # from magicgui.widgets import FunctionGui
