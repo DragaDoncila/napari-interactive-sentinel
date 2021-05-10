@@ -61,6 +61,7 @@ def get_ndvi(NIR, red, y, x):
 
     return ndvi
 
+
 @thread_worker
 def add_profile(
     pt,
@@ -81,22 +82,26 @@ def add_profile(
     current_lines = ndvi_axes.get_lines()
     if current_lines:
         xs, _ = current_lines[0].get_data()
+        all_ys = [line.get_data()[1] for line in current_lines]
     else:
         xs = np.arange(red.shape[0])
+        ndvi_axes.set_xlim(xs[0], xs[-1])
+        all_ys = []
+
     if (min_x <= pt[0] <= max_x) and\
          (min_y <= pt[1] <= max_y):
             new_ys = get_ndvi(nir, red, int(pt[0]), int(pt[1]))
             # TODO: set y limits based on all profiles
-            # minval, maxval = np.min(new_ys), np.max(new_ys)
-            # range_ = maxval - minval
-            # centre = (maxval + minval) / 2
-            # min_y = centre - 1.05 * range_ / 2
-            # max_y = centre + 1.05 * range_ / 2
-            # ndvi_axes.set_ylim(min_y, max_y)
-            ndvi_axes.set_xlim(xs[0], xs[-1])
+            all_ys += [new_ys]
+            all_ys = np.concatenate(all_ys).flatten()
+            minval, maxval = np.min(new_ys), np.max(new_ys)
+            range_ = maxval - minval
+            centre = (maxval + minval) / 2
+            min_y = centre - 1.05 * range_ / 2
+            max_y = centre + 1.05 * range_ / 2
+            ndvi_axes.set_ylim(min_y, max_y)
             ndvi_axes.plot(xs, new_ys)
 
-            canvas_widg.draw_idle()
     pbar.close()
 
 @tz.curry
@@ -109,8 +114,8 @@ def handle_data_change(
     nir,
     pts
 ):
-    pbar = progress(total=0)
     if pts.mode == 'add':
+        pbar = progress(total=0)
         pt = e.value[-1]
         pbar.set_description(f"NDVI @ ({int(pt[0])}, {int(pt[1])})")
         worker = add_profile(pt, widg, nir, red, pbar)
@@ -133,6 +138,7 @@ def start_profiles(
         red: 'napari.layers.Image',
         nir: 'napari.layers.Image',
         viewer : 'napari.viewer.Viewer',
+        #TODO: Add picker for layer level
         ):
     mode = start_profiles._call_button.text  # can be "Start" or "Finish"
 
