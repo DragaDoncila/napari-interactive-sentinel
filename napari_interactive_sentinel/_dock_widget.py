@@ -94,7 +94,7 @@ def add_profile(
             # TODO: set y limits based on all profiles
             all_ys += [new_ys]
             all_ys = np.concatenate(all_ys).flatten()
-            minval, maxval = np.min(new_ys), np.max(new_ys)
+            minval, maxval = np.min(all_ys), np.max(all_ys)
             range_ = maxval - minval
             centre = (maxval + minval) / 2
             min_y = centre - 1.05 * range_ / 2
@@ -102,6 +102,7 @@ def add_profile(
             ndvi_axes.set_ylim(min_y, max_y)
             ndvi_axes.plot(xs, new_ys)
 
+            canvas_widg.draw_idle()
     pbar.close()
 
 @tz.curry
