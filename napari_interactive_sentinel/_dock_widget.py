@@ -111,8 +111,11 @@ def move_release(pts, e, *args, red, nir, canvas_widget):
         LAST_MOVE_POINT = []
 
 
-def close_profiles(layer, callback):
-    layer.events.data.disconnect(callback)
+def close_profiles(layer, data_callback, move_callback, mouse_callback):
+    layer.events.data.disconnect(data_callback)
+    layer.events.move.disconnect(move_callback)
+    cbk_index = layer.mouse_drag_callbacks.index(mouse_callback)
+    layer.mouse_drag_callbacks.pop(cbk_index)
     layer.mode = "pan_zoom"
 
 
@@ -138,8 +141,8 @@ def start_profiles(
         # TODO: make points big
 
         widget = create_plot_dock(viewer)
-        callback = handle_data_add(widg=widget, red=red, nir=nir, pts=pts_layer)
-        pts_layer.events.data.connect(callback)
+        data_callback = handle_data_add(widg=widget, red=red, nir=nir, pts=pts_layer)
+        pts_layer.events.data.connect(data_callback)
         pts_layer.events.move.connect(handle_points_move)
 
         move_cbk = move_release(red=red, nir=nir, canvas_widget=widget)
@@ -150,14 +153,20 @@ def start_profiles(
 
         pts_layer.mode = "add"
 
-        # TODO: close properly...
         start_profiles._pts_layer = pts_layer
-        start_profiles._callback = callback
+        start_profiles._data_callback = data_callback
+        start_profiles._move_callback = handle_points_move
+        start_profiles._mouse_callback = move_cbk
 
         # change the button/mode for next run
         start_profiles._call_button.text = "Finish"
     else:  # we are in Finish mode
-        close_profiles(start_profiles._pts_layer, start_profiles._callback)
+        close_profiles(
+            start_profiles._pts_layer,
+            start_profiles._data_callback,
+            start_profiles._move_callback,
+            start_profiles._mouse_callback,
+        )
         start_profiles._call_button.text = "Start"
 
 
