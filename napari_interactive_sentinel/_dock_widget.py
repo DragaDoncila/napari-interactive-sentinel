@@ -157,6 +157,7 @@ def NDVI_profiles(
         viewer.layers.selection.add(pts_layer)
 
         pts_layer.mode = "add"
+        pts_layer.current_size = 100
 
         NDVI_profiles._pts_layer = pts_layer
         NDVI_profiles._data_callback = data_callback

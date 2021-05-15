@@ -10,4 +10,4 @@ def napari_experimental_provide_function():
 
 def get_ndvi_layer(red : ImageData, nir: ImageData) -> LayerDataTuple:
     ndvi_levels = compute_ndvi_layer(nir, red)
-    return (ndvi_levels, {'name':'NDVI', 'colormap':'summer'}, 'image')
+    return (ndvi_levels, {'name':'NDVI', 'colormap':'RdYlGn', 'contrast_limits': (0,1)}, 'image')
