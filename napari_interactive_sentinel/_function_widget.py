@@ -8,6 +8,11 @@ from ._utils import compute_ndvi_layer
 def napari_experimental_provide_function():
     return get_ndvi_layer
 
-def get_ndvi_layer(red : ImageData, nir: ImageData) -> LayerDataTuple:
+
+def get_ndvi_layer(red: ImageData, nir: ImageData) -> LayerDataTuple:
     ndvi_levels = compute_ndvi_layer(nir, red)
-    return (ndvi_levels, {'name':'NDVI', 'colormap':'RdYlGn', 'contrast_limits': (0,1)}, 'image')
+    return (
+        ndvi_levels,
+        {"name": "NDVI", "colormap": "RdYlGn", "contrast_limits": (0, 1)},
+        "image",
+    )

@@ -50,7 +50,7 @@ def add_profile(pts_layer, pt, canvas_widg, nir, red, pbar):
         pts_layer.face_color = current_colors
 
         canvas_widg.draw_idle()
-        pts_layer.current_face_color = 'white'
+        pts_layer.current_face_color = "white"
     pbar.close()
 
 

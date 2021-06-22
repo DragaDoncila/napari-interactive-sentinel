@@ -28,7 +28,7 @@ def get_ndvi_profile(NIR, red, y, x):
 def compute_ndvi_layer(NIR, red):
     """Get multiscale NDVI layer for display"""
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
         ndvi_levels = []
         for i in range(len(NIR)):
             current_nir = NIR[i].astype(np.float32)
@@ -72,6 +72,6 @@ def create_plot_dock(viewer):
     widget.setLayout(layout)
     layout.addWidget(toolbar)
     layout.addWidget(ndvi_canvas)
-    viewer.window.add_dock_widget(widget)
+    viewer.window.add_dock_widget(widget, area="bottom")
 
     return ndvi_canvas
