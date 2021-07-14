@@ -22,9 +22,13 @@ def napari_experimental_provide_dock_widget():
 
 @thread_worker
 def add_profile(pts_layer, pt, canvas_widg, nir, red, pbar):
-    # TODO: if not multiscale
-    red = red.data[0]
-    nir = nir.data[0]
+    layer_data = [red.data, nir.data]
+    for i, data in enumerate(layer_data):
+        if isinstance(data, list):
+            layer_data[i] = data[0]
+            
+    red = layer_data[0]
+    nir = layer_data[1]
 
     min_x, min_y = 0, 0
     max_x = red.shape[-1]
