@@ -29,6 +29,11 @@ def compute_ndvi_layer(NIR, red):
     """Get multiscale NDVI layer for display"""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        if not isinstance(NIR, list):
+            NIR = [NIR]
+        if not isinstance(red, list):
+            red = [red]
+
         ndvi_levels = []
         for i in range(len(NIR)):
             current_nir = NIR[i].astype(np.float32)
@@ -38,6 +43,10 @@ def compute_ndvi_layer(NIR, red):
             ndvi_layer = da.divide(intensity_diff, intensity_sum)
             ndvi_layer = da.nan_to_num(ndvi_layer)
             ndvi_levels.append(ndvi_layer)
+        
+        if len(ndvi_levels) == 1:
+            ndvi_levels = ndvi_levels[0]
+            
     return ndvi_levels
 
 
