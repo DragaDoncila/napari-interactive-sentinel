@@ -1,3 +1,4 @@
+
 # Pixel Driller
 
 The goal of pixel driller is to provide a variety of analysis functions
@@ -31,6 +32,9 @@ high resolution image with multiple timepoints, consider using
 [Dask arrays](https://docs.dask.org/en/latest/array.html)
 to enable lazy computation.
 
+https://user-images.githubusercontent.com/17995243/125924612-67797625-5cf3-463d-81df-121be00bca5d.mp4
+
+
 # NDVI_profiles
 
 This widget again allows you to select the relevant bands from your
@@ -51,6 +55,8 @@ based on the new location (once mouse drag is complete).
 
 Alternatively, you can add more points, and their profiles will be 
 added to the plotting canvas for inspection.
+
+https://user-images.githubusercontent.com/17995243/125924762-e3cf036e-675c-45b1-9671-0ae9f55b8765.mp4
 
 Note that the matplotlib canvas also has the matplotlib toolbar loaded.
 This means you can navigate around, and save the profiles, as you would
