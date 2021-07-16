@@ -53,7 +53,7 @@ setup(
     ],
     entry_points={
         "napari.plugin": [
-            "napari-interactive-sentinel = napari_interactive_sentinel",
+            "pixel-driller = napari_interactive_sentinel",
         ],
     },
 )
