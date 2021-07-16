@@ -20,6 +20,10 @@ and review the napari docs for plugin developers:
 https://napari.org/docs/plugins/index.html
 -->
 
+## Usage Documentation
+
+For usage documentation, please see the plugin's [description page](https://github.com/DragaDoncila/napari-interactive-sentinel/blob/master/.napari/DESCRIPTION.md).
+
 ## Installation
 
 You can install `napari-interactive-sentinel` via [pip]:
